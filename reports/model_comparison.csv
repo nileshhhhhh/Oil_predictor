@@ -1,3 +1,3 @@
 ,Model,CV_RMSE,RMSE,MAE,R2,Best_Parameters
-0,Ridge,6.711084866891744,5.086330370388803,4.203592616063972,-0.06922892739380426,{'model__alpha': np.float64(339.3221771895323)}
-1,XGBRegressor,7.28686035191201,6.518144207103167,5.667086751302084,-0.7559392973234358,"{'subsample': 0.7, 'reg_lambda': 10.0, 'reg_alpha': 0.01, 'n_estimators': 500, 'min_child_weight': 5, 'max_depth': 2, 'learning_rate': 0.01, 'colsample_bytree': 0.7}"
+0,Ridge,12.09876962655251,8.77840069301184,6.857119528628611,-2.184874841277731,{'model__alpha': np.float64(339.3221771895323)}
+1,HistGradientBoostingRegressor,12.616339506689958,14.78919359231647,13.245318140761272,-8.039627966880044,"{'min_samples_leaf': 20, 'max_leaf_nodes': 31, 'max_iter': 500, 'max_depth': 2, 'learning_rate': 0.03, 'l2_regularization': 0.0}"

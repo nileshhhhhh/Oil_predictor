@@ -3,7 +3,7 @@ from pathlib import Path
 from preprocessing import data_cleaning
 from feature_engineering import create_horizon_dataset
 from split import split_horizon_dataset, prepare_train_val_test, time_series_split
-from tune import tune_ridge_regressor, tune_xgb_regressor, model_comparison, best_model
+from tune import tune_ridge_regressor, tune_hist_gradient_boosting_regressor, model_comparison, best_model
 from evaluate import save_metrics
 from plots import show_plot
 from model_io import save_model
@@ -30,15 +30,15 @@ def main(csv_path, horizon, validation_months, test_months, model_path, figures_
     ridge_results = tune_ridge_regressor(
         X_train=X_train, y_train=y_train, X_val=X_val, y_val=y_val, cv=tscv
     )
-    xgb_results = tune_xgb_regressor(
+    hist_results = tune_hist_gradient_boosting_regressor(
         X_train=X_train, y_train=y_train, X_val=X_val, y_val=y_val, cv=tscv, n_iter=40
     )
-    comparison = model_comparison(ridge_results, xgb_results)
+    comparison = model_comparison(ridge_results, hist_results)
     Path(model_comparison_path).parent.mkdir(parents=True, exist_ok=True)
     comparison.to_csv(model_comparison_path)
 
     final_model, test_metrics, test_predictions = best_model(
-        comparison, ridge_results, xgb_results, X_train, y_train, X_val, y_val, X_test, y_test
+        comparison, ridge_results, hist_results, X_train, y_train, X_val, y_val, X_test, y_test
     )
     save_metrics(test_metrics, comparison, horizon)
 

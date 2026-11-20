@@ -5,7 +5,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import Ridge
 from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
-from xgboost import XGBRegressor
+from sklearn.ensemble import HistGradientBoostingRegressor
 from evaluate import evaluate_model
 
 def tune_ridge_regressor(X_train, y_train, X_val, y_val, cv, alpha_values=None):
@@ -79,7 +79,7 @@ def tune_ridge_regressor(X_train, y_train, X_val, y_val, cv, alpha_values=None):
     }
 
 
-def tune_xgb_regressor(
+def tune_hist_gradient_boosting_regressor(
     X_train,
     y_train,
     X_val,
@@ -90,7 +90,7 @@ def tune_xgb_regressor(
     random_state=42,
 ):
     """
-    Tune XGBRegressor using time-series cross-validation
+    Tune HistGradientBoostingRegressor using time-series cross-validation
     and evaluate the best model on the validation set.
 
     Returns
@@ -106,27 +106,24 @@ def tune_xgb_regressor(
 
     if param_distributions is None:
         param_distributions = {
-            "n_estimators": [100, 200, 300, 500, 700],
-            "max_depth": [2, 3, 4, 5, 6],
+            "max_iter": [100, 200, 300, 500, 700],
+            "max_leaf_nodes": [7, 15, 31],
+            "max_depth": [None, 2, 3, 4, 5, 6],
             "learning_rate": [0.01, 0.03, 0.05, 0.1],
-            "min_child_weight": [1, 3, 5, 7],
-            "subsample": [0.7, 0.8, 0.9, 1.0],
-            "colsample_bytree": [0.7, 0.8, 0.9, 1.0],
-            "reg_alpha": [0, 0.01, 0.1, 1.0],
-            "reg_lambda": [0.1, 1.0, 5.0, 10.0],
+            "min_samples_leaf": [5, 10, 20, 30],
+            "l2_regularization": [0.0, 0.1, 1.0, 5.0, 10.0],
         }
 
-    xgb_model = XGBRegressor(
-        objective="reg:squarederror",
-        tree_method="hist",
+    hist_model = HistGradientBoostingRegressor(
+        loss="squared_error",
+        # Keep validation chronological through the existing CV splits.
+        early_stopping=False,
         random_state=random_state,
-        # RandomizedSearchCV handles outer parallelization
-        n_jobs=1,
     )
 
     # Hyperparameter tuning
-    xgb_search = RandomizedSearchCV(
-        estimator=xgb_model,
+    hist_search = RandomizedSearchCV(
+        estimator=hist_model,
         param_distributions=param_distributions,
         n_iter=n_iter,
         scoring="neg_root_mean_squared_error",
@@ -137,26 +134,26 @@ def tune_xgb_regressor(
         refit=True,
     )
 
-    xgb_search.fit(X_train, y_train)
+    hist_search.fit(X_train, y_train)
 
     # Best fitted model
-    best_model = xgb_search.best_estimator_
+    best_model = hist_search.best_estimator_
 
     # Validation predictions
     val_predictions = best_model.predict(X_val)
 
     # Preserve validation dates
     val_predictions = pd.Series(
-        val_predictions, index=y_val.index, name="xgb_prediction"
+        val_predictions, index=y_val.index, name="hist_prediction"
     )
 
     # Validation metrics
     val_metrics = evaluate_model(y_val, val_predictions)
 
-    cv_rmse = -xgb_search.best_score_
+    cv_rmse = -hist_search.best_score_
 
-    print("Best XGBoost parameters:")
-    print(xgb_search.best_params_)
+    print("Best HistGradientBoosting parameters:")
+    print(hist_search.best_params_)
 
     print(f"\nCross-validation RMSE: {cv_rmse:.4f}")
 
@@ -166,15 +163,15 @@ def tune_xgb_regressor(
 
     return {
         "model": best_model,
-        "search": xgb_search,
-        "best_params": xgb_search.best_params_,
+        "search": hist_search,
+        "best_params": hist_search.best_params_,
         "cv_rmse": cv_rmse,
         "val_predictions": val_predictions,
         "val_metrics": val_metrics,
     }
 
 
-def model_comparison(ridge_results, xgb_results):
+def model_comparison(ridge_results, hist_results):
     model_comparison = pd.DataFrame([
         {
             "Model": "Ridge",
@@ -185,11 +182,11 @@ def model_comparison(ridge_results, xgb_results):
             )
         },
         {
-            "Model": "XGBRegressor",
-            "CV_RMSE": xgb_results["cv_rmse"],
-            **xgb_results["val_metrics"],
+            "Model": "HistGradientBoostingRegressor",
+            "CV_RMSE": hist_results["cv_rmse"],
+            **hist_results["val_metrics"],
             "Best_Parameters": str(
-                xgb_results["best_params"]
+                hist_results["best_params"]
             )
         }
     ])
@@ -202,7 +199,7 @@ def model_comparison(ridge_results, xgb_results):
 
     return model_comparison
 
-def best_model(model_comparison, ridge_results, xgb_results, X_train, y_train, X_val, y_val, X_test, y_test):
+def best_model(model_comparison, ridge_results, hist_results, X_train, y_train, X_val, y_val, X_test, y_test):
     """
     Refit the overall best model (picked from model_comparison) on
     train+validation data, and score it on the held-out test set.
@@ -221,8 +218,8 @@ def best_model(model_comparison, ridge_results, xgb_results, X_train, y_train, X
     if best_model_name == "Ridge":
         final_model = clone(ridge_results["model"])
 
-    elif best_model_name == "XGBRegressor":
-        final_model = clone(xgb_results["model"])
+    elif best_model_name == "HistGradientBoostingRegressor":
+        final_model = clone(hist_results["model"])
 
     else:
         raise ValueError("Unknown model selected.")

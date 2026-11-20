@@ -1,0 +1,3 @@
+,Model,CV_RMSE,RMSE,MAE,R2,Best_Parameters
+0,Ridge,6.711084866891744,5.086330370388806,4.203592616063972,-0.06922892739380537,{'model__alpha': np.float64(339.3221771895323)}
+1,HistGradientBoostingRegressor,7.3111580068503725,5.881344000233804,5.09898662122469,-0.4296006380712878,"{'min_samples_leaf': 20, 'max_leaf_nodes': 31, 'max_iter': 500, 'max_depth': 2, 'learning_rate': 0.01, 'l2_regularization': 5.0}"
